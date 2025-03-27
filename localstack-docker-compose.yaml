@@ -1,0 +1,18 @@
+version: '3.6'
+
+services:
+  localstack:
+    container_name: localstack
+    environment:
+      - DISABLE_CORS_CHECKS=1
+      - DISABLE_CUSTOM_CORS_APIGATEWAY=1
+      - DEBUG=1
+      - TEST_AWS_ACCOUNT_ID=000000000000
+      - AWS_DEFAULT_REGION=us-west-2
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - DATA_DIR=/tmp/localstack/data
+    image: localstack/localstack:latest
+    ports:
+      - "4566:4566"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
