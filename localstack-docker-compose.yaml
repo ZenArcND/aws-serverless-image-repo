@@ -7,12 +7,15 @@ services:
       - DISABLE_CORS_CHECKS=1
       - DISABLE_CUSTOM_CORS_APIGATEWAY=1
       - DEBUG=1
-      - TEST_AWS_ACCOUNT_ID=000000000000
-      - AWS_DEFAULT_REGION=us-west-2
       - DOCKER_HOST=unix:///var/run/docker.sock
       - DATA_DIR=/tmp/localstack/data
-    image: localstack/localstack:latest
+      - LOCALSTACK_HOST=192.168.0.30:4566
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_DEFAULT_REGION=us-east-1
+      - AWS_SECRET_ACCESS_KEY=test
+    image: localstack/localstack
     ports:
       - "4566:4566"
+      - "4510-4559:4510-4559"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock

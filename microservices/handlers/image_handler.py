@@ -1,3 +1,8 @@
+import os
+import sys
+package_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "package"))
+sys.path.append(package_path)
+
 from aws_lambda_powertools import Logger
 from aws_lambda_powertools.event_handler import ApiGatewayResolver
 from aws_lambda_powertools.utilities.typing import LambdaContext
@@ -36,7 +41,7 @@ def get_image(image_id: str):
 @app.delete("/image/<image_id>")
 def delete_image(image_id: str):
     image_service.delete_image(image_id)
-    return {}, 200
+    return {"status": "Success"}, 200
 
 
 #---------------------
@@ -59,12 +64,12 @@ def list_images():
 #---------------------
 #  Common Exception Handler
 #---------------------
-@app.exception_handler(Exception)
-def handle_exception(ex):
-    if isinstance(ex, ApiException):
-        return ex.get_response()
-    else:
-        return ApiException("Unknown Error", 500).get_response()
+# @app.exception_handler(Exception)
+# def handle_exception(ex):
+#     if isinstance(ex, ApiException):
+#         return ex.get_response()
+#     else:
+#         return ApiException("Unknown Error", 500).get_response()
 
 
 

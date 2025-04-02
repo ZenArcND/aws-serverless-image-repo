@@ -1,4 +1,3 @@
-import json
 from datetime import datetime
 
 
@@ -18,14 +17,14 @@ class ApiException(Exception):
         result['status_code'] = self.status_code
         result['timestamp'] = str(datetime.now())
 
+        return result
+
     def to_json(self):
-        return json.dumps(self.to_dict())
+        return self.to_dict(), self.status_code
 
     def get_response(self):
-        result = self.to_dict()
-        json_response = json.dumps(result)
-        return json_response, result['status_code']
-    
+        return self.to_dict(), self.status_code
+
 
 class ResourceNotFoundException(ApiException):
     def __init__(self, message):

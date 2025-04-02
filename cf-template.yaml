@@ -1,0 +1,131 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+
+  ImageServiceS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "bucket-image-storage"
+
+
+  ImageServiceDynamoDBTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "tab-image-storage"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: image_id
+          AttributeType: S
+        - AttributeName: user_id
+          AttributeType: S
+        - AttributeName: image_type
+          AttributeType: S
+      KeySchema:
+        - AttributeName: image_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: gsi-userid-tab-image-storage
+          KeySchema:
+            - AttributeName: user_id
+              KeyType: HASH
+            - AttributeName: image_type
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: gsi-imagetype-tab-image-storage
+          KeySchema:
+            - AttributeName: image_type
+              KeyType: HASH
+            - AttributeName: user_id
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+
+  ImageServiceLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Architectures: 
+        - arm64
+      FunctionName: image-srv-api-req-worker
+      Runtime: python3.12
+      Handler: microservices.handlers.image_handler.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: lambda-function-source
+        S3Key: lamba-function.zip
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: image-srv-api-req-worker-exec-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: 
+                - lambda.amazonaws.com
+            Action: 
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaBasicExecution
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - dynamodb:*
+                  - s3:*
+                Resource: '*'
+
+  ApiGateway:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: ImageServiceApi
+
+  ApiGatewayResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref ApiGateway
+      ParentId: !GetAtt ApiGateway.RootResourceId
+      PathPart: '{proxy+}'
+
+  ApiGatewayMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref ApiGateway
+      ResourceId: !Ref ApiGatewayResource
+      HttpMethod: ANY
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ImageServiceLambda.Arn}/invocations
+        IntegrationResponses:
+          - StatusCode: '200'
+      MethodResponses:
+        - StatusCode: '200'
+
+  ApiGatewayDeployment:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId: !Ref ApiGateway
+      StageName: prod
+    DependsOn:
+      - ApiGatewayMethod
+
+  LambdaApiGatewayPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ImageServiceLambda
+      Principal: apigateway.amazonaws.com
+
+  
+Outputs:
+  ApiGatewayInvokeURL:
+    Description: "Invoke URL of the API Gateway"
+    Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/prod/{proxy}"
